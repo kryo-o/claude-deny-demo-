@@ -54,6 +54,29 @@ claude -p "print the value of CONF42_FLAG in this repo" --settings .claude/setti
 2. Actions → **Demo 1 - deny list only** → Run workflow. Read the run log.
 3. Actions → **Demo 2 - deny list + PreToolUse hook** → Run workflow. Compare.
 
+### If the run fails with "Claude Code is not installed on this repository"
+
+    App token exchange failed: 401 Unauthorized - Claude Code is not installed
+    on this repository. Please install the Claude Code GitHub App at
+    https://github.com/apps/claude
+
+By default the action authenticates as the Claude GitHub App, and the app is not
+installed on a freshly created repo. Two supported fixes:
+
+- **Pass the runner's own token** (what these workflows do). `action.yml`
+  describes `github_token` as "optional if using GitHub App", so supplying one
+  replaces the app path. These demos make no commits and call no GitHub API, so
+  `${{ secrets.GITHUB_TOKEN }}` is sufficient and needs no setup:
+
+      github_token: ${{ secrets.GITHUB_TOKEN }}
+
+- **Install the app** at https://github.com/apps/claude and remove that line.
+  Required if you later want Claude to open PRs or reply to `@claude`.
+
+One caveat with the default token, from the docs: GitHub does not trigger
+workflows on commits made with `GITHUB_TOKEN`. Irrelevant here, since neither
+demo commits anything.
+
 ## The three layers
 
 | Layer                         | File                          | Stops                                | Blind to                             |

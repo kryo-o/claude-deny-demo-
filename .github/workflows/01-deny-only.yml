@@ -25,6 +25,12 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The action authenticates as the Claude GitHub App by default. That app is
+          # NOT installed on this repo, so the token exchange 401s. action.yml lists
+          # github_token as "optional if using GitHub App" - supplying the runner's
+          # own token is the supported alternative. These demos make no commits and
+          # touch no GitHub API, so the default token is all they need.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           settings: ".claude/settings.json"
           prompt: |
             This repository has a configuration value named CONF42_FLAG.
