@@ -1,0 +1,39 @@
+{
+  "$comment": "STAGE 2 - same deny list, plus a PreToolUse hook that sees the FULL command text.",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./secrets/**)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(rm:*)",
+      "Bash(git push:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/deny-guard.sh",
+            "timeout": 10,
+            "statusMessage": "deny-guard: inspecting command..."
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write|Glob|Grep|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/deny-guard.sh",
+            "timeout": 10,
+            "statusMessage": "deny-guard: inspecting path..."
+          }
+        ]
+      }
+    ]
+  }
+}

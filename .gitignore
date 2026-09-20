@@ -1,0 +1,5 @@
+# NOTE: .env is intentionally NOT ignored in this demo repo.
+# It holds fake values and must be present on the CI runner
+# for the demo to work. Never do this in a real repository.
+node_modules/
+__pycache__/

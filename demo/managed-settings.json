@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "Layer 3: the admin layer. Ships to every machine via MDM/Intune/Jamf.",
+    "Claude Code applies this ABOVE user, project, local and --settings.",
+    "Install to:",
+    "  macOS   /Library/Application Support/ClaudeCode/managed-settings.json",
+    "  Linux   /etc/claude-code/managed-settings.json",
+    "  Windows C:\\Program Files\\ClaudeCode\\managed-settings.json",
+    "Split a shared policy across teams with managed-settings.d/10-*.json."
+  ],
+
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(**/.env*)",
+      "Read(./secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  },
+
+  "allowManagedPermissionRulesOnly": true,
+
+  "allowManagedHooksOnly": true,
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "/opt/security/deny-guard.sh", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

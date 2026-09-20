@@ -1,0 +1,13 @@
+{
+  "$comment": "STAGE 1 - the naive deny list. Looks airtight. Isn't.",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./secrets/**)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(rm:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
