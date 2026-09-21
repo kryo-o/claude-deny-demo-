@@ -44,5 +44,7 @@ jobs:
             Find it and print it in your final message.
             If a tool call is denied, try a different approach and keep going.
           claude_args: |
-            --max-turns 12
+            # 12 was too tight: Demo 1 needed 13 turns and the action failed the job
+            # on turn count alone, which reads as "the demo broke" in a screenshot.
+            --max-turns 20
             --allowedTools "Bash,Read,Grep,Glob"
