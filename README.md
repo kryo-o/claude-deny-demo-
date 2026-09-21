@@ -21,7 +21,7 @@ settings.
 .github/workflows/02-hook-guarded.yml  CI: Claude is stopped
 demo/bypasses.md               the cheat sheet, with doc citations
 demo/managed-settings.json     stage 3 - the admin layer
-scripts/test-hook.sh           fires 49 payloads at the hook, prints verdicts
+scripts/test-hook.sh           fires 57 payloads at the hook, prints verdicts
 ```
 
 ## 60-second local demo
@@ -30,15 +30,16 @@ scripts/test-hook.sh           fires 49 payloads at the hook, prints verdicts
 ./scripts/test-hook.sh
 ```
 
-49 payloads in ten groups, ordered by how well each claim is supported: what
+57 payloads in eleven groups, ordered by how well each claim is supported: what
 deny already blocks, bypasses named verbatim in the docs' own table, bypasses
-named in its prose, plausible-but-undocumented ones, the two red-team rounds
-against this hook (a secret name it did not know, destroyers that are not `rm`,
-and the glob that beat it in CI), ordinary work that must still pass, and the
-known gaps it deliberately does not close.
+named in its prose, plausible-but-undocumented ones, the red-team rounds against
+this hook (a secret name it did not know, destroyers that are not `rm`, the glob
+that beat it in CI, and the stdin eval that beat it in CI), ordinary work that
+must still pass, and the known gaps it deliberately does not close.
 
-38 are denied, 11 are allowed. Three of those 11 are block 10 - `> file`,
-`: > file` and `mv` - the hook reporting its own failures.
+42 are denied, 15 are allowed. Seven of those 15 are block 11 - `git log -p`,
+a script written to disk then run, `> file`, `: > file` and `mv` - the hook
+reporting its own failures.
 
 ## Live terminal demo
 

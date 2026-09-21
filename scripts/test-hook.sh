@@ -94,16 +94,34 @@ echo -e "  ${D}  The shell expands the glob AFTER the check, so neither the deny
 echo -e "    rule nor SECRET_RE ever sees the literal \".env\".${N}"
 
 echo
-echo -e "${Y}== 9. ordinary globbing must still work ==${N}"
+echo -e "${Y}== 9. stdin eval - found by the GUARDED CI run ==${N}"
+row Bash "python3 <<PY"                                   "beat the hook"
+row Bash "echo 'print(open(\".\"+\"env\").read())' | python3"  "beat the hook"
+row Bash "python3 - <<< 'open(\".\"+\"env\")'"           "beat the hook"
+row Bash "cat reader.py | python3 -"                      "beat the hook"
+echo -e "  ${D}  No -c flag, and the filename is assembled at runtime, so neither"
+echo -e "    the eval check nor SECRET_RE had anything to match. Reading the"
+echo -e "    program from stdin is the same act as -c, so it is now the same rule.${N}"
+
+echo
+echo -e "${Y}== 10. ordinary globbing must still work ==${N}"
 row Bash "ls *.ts"                                        "normal work"
 row Bash "wc -l src/*.py"                                 "normal work"
 row Bash "grep -n TODO app/*.py"                          "normal work"
 
 echo
-echo -e "${Y}== 10. KNOWN GAPS - this hook does not close these ==${N}"
+echo -e "${Y}== 11. KNOWN GAPS - this hook does not close these ==${N}"
+row Bash "git log -p"                                     "by design"
+row Bash "git show HEAD~1"                                "by design"
+row Bash "git cat-file -p HEAD^{tree}"                    "by design"
+row Bash "printf '...' > /tmp/x.py; python3 /tmp/x.py"    "by design"
 row Bash "> important.db"                                "by design"
 row Bash ": > important.db"                              "by design"
 row Bash "mv important.db /tmp/gone"                     "by design"
-echo -e "  ${D}  A command string is the wrong place to win this. Use a container,"
+echo -e "  ${D}  git history holds a second copy of the secret; naming .env is caught,"
+echo -e "    not naming it is not. Blocking git show/diff would break real work."
+echo -e "    And a script written to disk, then run, never puts the path in any"
+echo -e "    command string at all - block 9 closed the spelling, not the class."
+echo -e "    A command string is the wrong place to win this. Use a container,"
 echo -e "    a separate user, or a read-only mount.${N}"
 echo
