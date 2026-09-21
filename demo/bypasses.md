@@ -127,6 +127,35 @@ The first four are now checked. The last three are **not**, deliberately:
 enumerate-badness treadmill as the deny list, one level up - this time in *my*
 code. A command string is the wrong place to win it.
 
+### Round 3: a glob beat the hook, found by the guarded CI run  [TESTED]
+
+`02-hook-guarded.yml` was supposed to block every route. It blocked the Read
+tool, it blocked `ls -R`, and `deny-guard.sh` blocked `git show HEAD:.env` when
+`SECRET_RE` matched. Then this got the file:
+
+    head -n 50 .e*
+
+The shell expands `.e*` to `.env` **after** the permission check and after the
+hook, so nothing in the chain ever sees the literal string `.env`:
+
+- `Read(./.env)` matches the literal path `.env`, not the glob `.e*`.
+- `SECRET_RE` needs a literal `\.env`; `.e*` has no `.env` substring.
+- `head` is not on any reader list, and adding it would not help - the next
+  reader would not be on the list either.
+
+Claude's own summary from that run: *"The name-anchored controls can't enumerate
+every spelling; a shell glob is one more spelling."*
+
+**Fixed** by rejecting a token that starts with a literal `.` and contains a glob
+metacharacter. Only a pattern whose first character is a literal dot can expand
+to a dotfile - bash does not match leading dots with `*` or `?` unless `dotglob`
+is set - so the rule stays narrow. It also rejects `ls .*`, which is harmless but
+legitimate; for a guard hook that is the right side to err on.
+
+This is the third time this hook has been patched for the same reason: it
+anchored on a name, and someone found another spelling. Each fix was correct and
+each one was late. That is the argument for the sandbox, not against the hook.
+
 ### The rule this gives you
 
 | goal | anchor on | can a hook win? |

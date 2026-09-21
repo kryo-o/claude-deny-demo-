@@ -100,6 +100,20 @@ check() { printf '%s' "$N" | grep -qE "$1" && deny "$2"; return 0; }
 # --- 1. any mention of a protected path, by ANY program ----------------------
 check "$SECRET_RE" "command references a protected path (.env / secrets / keys)"
 
+# --- 1b. GLOB EXPANSION -------------------------------------------------------
+# Found by the guarded CI run: `head -n 50 .e*` read .env. The shell expands the
+# glob AFTER the permission check and after this hook, so neither the deny rule
+# nor SECRET_RE ever sees the literal string ".env". Enumerating readers does not
+# help - `head` was not on any list, and the next one will not be either.
+#
+# Only a pattern whose first character is a literal "." can expand to a dotfile
+# (bash does not match leading dots with * or ? unless dotglob is set), so the
+# rule is narrow: reject a token that starts with "." and contains a glob
+# metacharacter. Trade-off: this also rejects `ls .*`, which is harmless but
+# legitimate. For a guard hook that is the right side to err on.
+check '(^| |=)\.[A-Za-z0-9_./-]*[*?]'  "a glob over a dotfile can expand to a protected path"
+check '(^| |=)\.[A-Za-z0-9_./-]*\['   "a bracket glob over a dotfile can expand to a protected path"
+
 # --- 2. arbitrary code eval: the hook cannot see inside the string ------------
 check '\b(python3?|node|deno|bun|ruby|perl|php)\b[^|;&]*\s-(c|e)\b' \
       "inline script eval is denied - a script can open any file without naming it"

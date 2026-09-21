@@ -85,7 +85,22 @@ row Bash "install /dev/null important.db"                "not rm"
 row Bash "cp /dev/null important.db"                     "not rm"
 
 echo
-echo -e "${Y}== 8. KNOWN GAPS - this hook does not close these ==${N}"
+echo -e "${Y}== 8. glob expansion - found by the GUARDED CI run ==${N}"
+row Bash "head -n 50 .e*"                                "beat the hook"
+row Bash "cat ./.e*"                                     "beat the hook"
+row Bash "head .[e]nv"                                    "beat the hook"
+row Bash "less .en?"                                      "beat the hook"
+echo -e "  ${D}  The shell expands the glob AFTER the check, so neither the deny"
+echo -e "    rule nor SECRET_RE ever sees the literal \".env\".${N}"
+
+echo
+echo -e "${Y}== 9. ordinary globbing must still work ==${N}"
+row Bash "ls *.ts"                                        "normal work"
+row Bash "wc -l src/*.py"                                 "normal work"
+row Bash "grep -n TODO app/*.py"                          "normal work"
+
+echo
+echo -e "${Y}== 10. KNOWN GAPS - this hook does not close these ==${N}"
 row Bash "> important.db"                                "by design"
 row Bash ": > important.db"                              "by design"
 row Bash "mv important.db /tmp/gone"                     "by design"
