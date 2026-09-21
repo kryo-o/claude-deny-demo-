@@ -17,8 +17,8 @@ settings.
 .claude/settings.json          stage 1 - deny list only
 .claude/settings.guarded.json  stage 2 - deny list + PreToolUse hook
 .claude/hooks/deny-guard.sh    the hook
-.github/workflows/01-deny-only.yml     CI: Claude gets the secret
-.github/workflows/02-hook-guarded.yml  CI: Claude is stopped
+.github/workflows/01-deny-only.yml     CI: deny list + Bash -> leaks
+.github/workflows/02-hook-guarded.yml  CI: hook + file tools only -> holds
 demo/bypasses.md               the cheat sheet, with doc citations
 demo/managed-settings.json     stage 3 - the admin layer
 scripts/test-hook.sh           fires 57 payloads at the hook, prints verdicts

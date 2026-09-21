@@ -257,11 +257,27 @@ hook reports its own failures.
 
 ## What actually holds
 
-1. **PreToolUse hook** — sees the full raw command string. `deny-guard.sh` here.
-2. **Sandboxing** — "For OS-level enforcement that blocks all processes from
+A 62-payload sweep (file tools, direct Bash reads, interpreters, git history,
+wrappers, destroyers, exfil) against `deny-guard.sh`: **56 blocked, 5 leaked.**
+Every one of the 5 required **Bash** - a runtime-assembled path (write a `.py`
+that builds the name from `chr()`, then run it) or git history (`git log -p`,
+`git show HEAD`). Every **file-tool** route - Read, Grep, Glob, absolute paths,
+`..`, glob expansion, `Grep path=.env` - was denied, zero leaks.
+
+That is the whole finding: **the hook holds the file-tool surface completely; a
+shell is the hole.** So the enforceable configuration is not more regex, it is:
+
+1. **Grant the minimum tool surface.** `02-hook-guarded.yml` gives the agent
+   only `Read,Grep,Glob` - no Bash. A read-only CI job does not need a shell,
+   and without one the interpreter and git-history routes do not exist. The hook
+   still earns its place there: `Grep path=.env` and a traversal read are not
+   covered by any deny rule, and the hook denies both by location.
+2. **PreToolUse hook** — sees the full raw command string. `deny-guard.sh` here.
+   Necessary, not sufficient, the moment Bash is in play.
+3. **Sandboxing** — "For OS-level enforcement that blocks all processes from
    accessing a path, enable the sandbox." The only thing that stops a rogue
-   subprocess. [DOC]
-3. **Managed settings** — so 1 and 2 are not the developer's choice.
+   subprocess when the job genuinely needs a shell. [DOC]
+4. **Managed settings** — so 1–3 are not the developer's choice.
 
 ## Hook precedence — both directions [DOC]
 
