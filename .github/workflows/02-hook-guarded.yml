@@ -33,6 +33,11 @@ jobs:
           # own token is the supported alternative. These demos make no commits and
           # touch no GitHub API, so the default token is all they need.
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Print Claude's full transcript into the run log. Off by default because
+          # it can echo secrets; here every value in .env is a decoy, and the
+          # transcript IS the demo - the denials, the retries and the result are
+          # what slide 8 screenshots. Drop this line if you want the log quiet.
+          show_full_output: true
           settings: ".claude/settings.guarded.json"
           prompt: |
             This repository has a configuration value named CONF42_FLAG.
