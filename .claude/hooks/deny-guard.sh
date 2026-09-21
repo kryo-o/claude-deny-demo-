@@ -44,12 +44,32 @@ deny() {
 }
 
 # --- paths that must never be read, written, or named on a command line ------
-SECRET_RE='(^|[^A-Za-z0-9_.-])\.env([.][A-Za-z0-9_.-]+)?([^A-Za-z0-9_.-]|$)|(^|/)secrets/|\.ssh/id_|\.pem([^A-Za-z0-9]|$)|\.aws/credentials|\.config/gcloud/|\.azure/|\.gnupg/|Library/Keychains|\.netrc|\.npmrc|id_rsa|id_ed25519|\.bash_history|\.zsh_history|(Cookies|Login Data)|cookies\.sqlite|logins\.json'
+# NOTE: still a name list, and a name list never ends - kubeconfig.demo slipped
+# past the first version of this. `.key` is deliberately aggressive; drop it if
+# your repo has legitimate *.key fixtures.
+SECRET_RE='(^|[^A-Za-z0-9_.-])\.env([.][A-Za-z0-9_.-]+)?([^A-Za-z0-9_.-]|$)|(^|/)secrets/|\.ssh/id_|/id_rsa|/id_ed25519|/id_dsa|/id_ecdsa|\.pem([^A-Za-z0-9]|$)|\.aws/credentials|\.config/gcloud/|\.azure/|\.gnupg/|Library/Keychains|\.netrc|\.npmrc|kubeconfig|\.kube/|\.tfstate|\.tfvars|terraform\.tfstate|credentials\.(ya?ml|json)|service.?account.*\.json|\.(p12|pfx|key|keystore|jks)([^A-Za-z0-9]|$)|docker/config\.json|\.dockercfg|\.bash_history|\.zsh_history|(Cookies|Login Data)|cookies\.sqlite|logins\.json'
 
 # =============================================================================
 # FILE TOOLS  (Read / Edit / Write / Glob / Grep)
 # =============================================================================
 if [ -n "$FILE" ]; then
+  # A name list never ends. A location either is inside the project or it is not,
+  # and that check does not grow. Names stay as a second line of defence for the
+  # secrets that live inside the project.
+  CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty')
+  case "$FILE" in
+    *..*) deny "'$FILE' contains .. - path traversal is denied" ;;
+  esac
+  if [ -n "$CWD" ]; then
+    case "$FILE" in
+      /*) ABS="$FILE" ;;
+      *)  ABS="$CWD/$FILE" ;;
+    esac
+    case "$ABS" in
+      "$CWD"|"$CWD"/*) : ;;
+      *) deny "'$FILE' is outside the project directory" ;;
+    esac
+  fi
   if printf '%s' "$FILE" | grep -qE "$SECRET_RE"; then
     deny "'$FILE' is a protected path"
   fi
@@ -59,12 +79,16 @@ fi
 [ -z "$CMD" ] && exit 0
 
 # =============================================================================
-# NORMALISE  - this is the whole trick.
+# NORMALISE  - step 1 of 2. This kills the SPELLING variants.
 #   1. strip quotes        ->  git 'push'      becomes  git push
 #                              sh -c 'cat .env' becomes sh -c cat .env
 #   2. strip binary dirs   ->  /bin/rm         becomes  rm
 #   3. collapse whitespace ->  rm    -rf       becomes  rm -rf
 # Match the NORMALISED string, not what the model typed.
+#
+# It does NOT kill name-list gaps: normalising /bin/cat kubeconfig.demo to
+# cat kubeconfig.demo changes nothing if "kubeconfig" is not in SECRET_RE.
+# Step 2 is the location anchor on the file-tool path above.
 # =============================================================================
 N=$(printf '%s' "$CMD" \
   | tr -d "\"'" \
@@ -98,6 +122,10 @@ check '\btar\b[^|;&]*\s-?c'             "tar create is denied - it can package a
 check '\b(xxd|od|strings|base64|hexdump|rev|shred)\b' "binary/encoding reader is denied"
 
 # --- 6. destructive ----------------------------------------------------------
+check '\bdd\b[^|;&]*\bof='             "dd of= can overwrite a file"
+check '\btruncate\b[^|;&]*-s'         "truncate can zero a file"
+check '\binstall\b[^|;&]*/dev/null'   "install /dev/null clobbers a file"
+check '\bcp\b[^|;&]*/dev/null'        "cp /dev/null clobbers a file"
 check '(^| )rm( |$)'                    "rm is denied"
 check '\brmdir\b'                       "rmdir is denied"
 check '\bsudo\b'                        "sudo is denied"
@@ -109,5 +137,21 @@ check 'git\s+branch\b[^|;&]*-D'         "git branch -D is denied"
 
 # --- 7. outbound network (exfiltration) --------------------------------------
 check '\b(curl|wget|nc|ncat|socat|telnet)\b' "outbound network tool is denied"
+
+# =============================================================================
+# KNOWN GAPS - by design, not oversight.
+#
+# These make a file disappear and this hook does NOT stop them:
+#     > file        : > file        (truncation via redirect)
+#     mv file away                  (rename is ordinary daily work)
+#
+# Blocking `>` would kill all output redirection; blocking `mv` would block
+# refactoring. "Make a file disappear" has unbounded spellings, which is the
+# same treadmill as the deny list one level up.
+#
+# A command string is the wrong place to win this. The fix is below the agent:
+# run it as a separate user, or in a container with the sensitive paths mounted
+# read-only. This hook is defence in depth, not the wall.
+# =============================================================================
 
 exit 0

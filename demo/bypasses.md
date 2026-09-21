@@ -86,6 +86,58 @@ a program, and a program has unlimited spellings.**
 The point stands either way: column three is infinite and you cannot enumerate
 your way out of it.
 
+## Red-teaming the hook itself  [TESTED]
+
+`deny-guard.sh` was attacked the same way the deny list was. Two gaps, and they
+are different in kind. This distinction is the real lesson.
+
+### Reads: the hook anchored on names, so a name got past it  [FIXED]
+
+`kubeconfig.demo` walked straight through, because "kubeconfig" was not in
+`SECRET_RE`. The mechanism was fine - `SECRET_RE` runs on every command and
+every file-tool path, so `awk`, `sed`, `tail` and `/bin/cat` are all caught the
+moment the path matches - but the *list* was short.
+
+Widened to cover kubeconfig, `.kube/`, tfstate/tfvars, `credentials.yaml|json`,
+service-account JSON, p12/pfx/key/keystore/jks, `id_dsa`, `id_ecdsa`,
+`docker/config.json`, `.dockercfg`.
+
+**And, more importantly, stopped relying on names alone.** File-tool paths are
+now checked by *location*: a path containing `..` is denied, and a path that
+resolves outside the session's `cwd` is denied. A name list never ends; "inside
+the project or not" does not grow. Names remain as a second line of defence for
+the secrets that live inside the project.
+
+### Deletes: unwinnable in a hook, and worth saying so  [BY DESIGN]
+
+`rm`, `rmdir` and `find -delete` were covered. These destroyed files anyway:
+
+    dd of=file        truncate -s0 file      install /dev/null file
+    cp /dev/null file                                                  <- now blocked
+
+    > file            : > file               mv file away
+                                                                       <- still open
+
+The first four are now checked. The last three are **not**, deliberately:
+
+- Blocking `>` means blocking all output redirection.
+- Blocking `mv` means blocking refactoring.
+
+"Make a file disappear" has unbounded spellings. That is the same
+enumerate-badness treadmill as the deny list, one level up - this time in *my*
+code. A command string is the wrong place to win it.
+
+### The rule this gives you
+
+| goal | anchor on | can a hook win? |
+|------|-----------|-----------------|
+| stop a **read** | the data: path and location | Yes, if you anchor on location rather than names |
+| stop a **delete or write** | the program | No. Unbounded spellings |
+
+For writes and deletes the fix is below the agent: a container, a separate user,
+or the sensitive paths mounted read-only. Run `./scripts/test-hook.sh` and look
+at block 8 - the hook reports its own failures.
+
 ## What actually holds
 
 1. **PreToolUse hook** — sees the full raw command string. `deny-guard.sh` here.
